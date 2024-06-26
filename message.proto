@@ -1,0 +1,49 @@
+syntax = "proto3";
+
+option go_package = "message/pb";
+
+service StreamingService {
+// Unary RPC
+rpc UnaryRPC(UnaryRequest) returns (UnaryResponse) {}
+
+// Client Streaming RPC
+rpc ClientStreamRPC(stream ClientStreamRequest) returns (ClientStreamResponse) {}
+
+// Server Streaming RPC
+rpc ServerStreamRPC(ServerStreamRequest) returns (stream ServerStreamResponse) {}
+
+// Bidirectional Streaming RPC
+rpc BidirectionalStreamRPC(stream BidirectionalStreamRequest) returns (stream BidirectionalStreamResponse) {}
+}
+
+message UnaryRequest {
+string message = 1;
+}
+
+message UnaryResponse {
+string response = 1;
+}
+
+message ClientStreamRequest {
+string message = 1;
+}
+
+message ClientStreamResponse {
+string response = 1;
+}
+
+message ServerStreamRequest {
+string message = 1;
+}
+
+message ServerStreamResponse {
+string response = 1;
+}
+
+message BidirectionalStreamRequest {
+string message = 1;
+}
+
+message BidirectionalStreamResponse {
+string response = 1;
+}
