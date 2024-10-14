@@ -2,13 +2,14 @@ package main
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"io"
 	"net"
+	"net/http"
 	"server/message/pb"
 	"time"
 
+	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"google.golang.org/grpc"
 )
 
@@ -70,15 +71,12 @@ func server_start(port string) {
 	s := grpc.NewServer()
 	pb.RegisterStreamingServiceServer(s, &StreamingServer{})
 	fmt.Printf("Server started, listening on %s \n", port)
-	if err := s.Serve(l); err != nil {
+	mux := runtime.NewServeMux()
+	mux.HandlePath("*", "/", runtime.HandlerFunc(func(w http.ResponseWriter, r *http.Request, pathParams map[string]string) {
+		fmt.Println("http request touched")
+		w.Write([]byte("hello, http"))
+	}))
+	if err := http.Serve(l, mux); err != nil {
 		fmt.Printf("failed to serve: %v", err)
 	}
-}
-
-func main() {
-	port := "38888"
-	flag.StringVar(&port, "port", port, "The server port")
-	flag.IntVar(&ServerDelay, "delay", ServerDelay, "The server delay, unit: ms")
-	flag.Parse()
-	server_start(port)
 }

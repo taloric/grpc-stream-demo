@@ -19,10 +19,10 @@ import (
 const _ = grpc.SupportPackageIsVersion7
 
 const (
-	StreamingService_UnaryRPC_FullMethodName               = "/StreamingService/UnaryRPC"
-	StreamingService_ClientStreamRPC_FullMethodName        = "/StreamingService/ClientStreamRPC"
-	StreamingService_ServerStreamRPC_FullMethodName        = "/StreamingService/ServerStreamRPC"
-	StreamingService_BidirectionalStreamRPC_FullMethodName = "/StreamingService/BidirectionalStreamRPC"
+	StreamingService_UnaryRPC_FullMethodName               = "/message.StreamingService/UnaryRPC"
+	StreamingService_ClientStreamRPC_FullMethodName        = "/message.StreamingService/ClientStreamRPC"
+	StreamingService_ServerStreamRPC_FullMethodName        = "/message.StreamingService/ServerStreamRPC"
+	StreamingService_BidirectionalStreamRPC_FullMethodName = "/message.StreamingService/BidirectionalStreamRPC"
 )
 
 // StreamingServiceClient is the client API for StreamingService service.
@@ -292,7 +292,7 @@ func (x *streamingServiceBidirectionalStreamRPCServer) Recv() (*BidirectionalStr
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var StreamingService_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "StreamingService",
+	ServiceName: "message.StreamingService",
 	HandlerType: (*StreamingServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
