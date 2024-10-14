@@ -1,3 +1,3 @@
 grpc-stream-demo
 
-test only for flow quick test
+**Only for grpc stream mode test**
