@@ -70,13 +70,20 @@ func server_start(port string) {
 	}
 	s := grpc.NewServer()
 	pb.RegisterStreamingServiceServer(s, &StreamingServer{})
-	fmt.Printf("Server started, listening on %s \n", port)
+
 	mux := runtime.NewServeMux()
-	mux.HandlePath("*", "/", runtime.HandlerFunc(func(w http.ResponseWriter, r *http.Request, pathParams map[string]string) {
+	mux.HandlePath("GET", "/hello", runtime.HandlerFunc(func(w http.ResponseWriter, r *http.Request, pathParams map[string]string) {
 		fmt.Println("http request touched")
 		w.Write([]byte("hello, http"))
 	}))
+
+	go func() {
+		if err := s.Serve(l); err != nil {
+			fmt.Printf("failed to serve grpc: %v", err)
+		}
+	}()
+
 	if err := http.Serve(l, mux); err != nil {
-		fmt.Printf("failed to serve: %v", err)
+		fmt.Printf("failed to serve http: %v", err)
 	}
 }
