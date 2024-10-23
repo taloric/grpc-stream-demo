@@ -33,6 +33,12 @@ func main() {
 
 	client := pb.NewStreamingServiceClient(conn)
 
+	streamingClient := &StreamingClient{
+		recvChan:   make(chan string),
+		recvClient: client,
+	}
+	streamingClient.initOneClientStream()
+
 	reader := bufio.NewReader(os.Stdin)
 	for {
 		fmt.Println("Select the communication mode:")
@@ -40,7 +46,8 @@ func main() {
 		fmt.Println("2. Client Stream RPC")
 		fmt.Println("3. Server Stream RPC")
 		fmt.Println("4. Bidirectional Stream RPC")
-		fmt.Println("5. Exit")
+		fmt.Println("5. Client Repeated Stream RPC, Use Same Stream during Send and Recv")
+		fmt.Println("6. Exit")
 
 		fmt.Print("Enter your choice (1-5): ")
 		choice, _ := reader.ReadString('\n')
@@ -48,15 +55,18 @@ func main() {
 
 		switch choice {
 		case "1":
-			unaryRPC(client)
+			streamingClient.unaryRPC(client)
 		case "2":
-			clientStreamRPC(client)
+			streamingClient.clientStreamRPC(client)
 		case "3":
-			serverStreamRPC(client)
+			streamingClient.serverStreamRPC(client)
 		case "4":
-			bidirectionalStreamRPC(client)
+			streamingClient.bidirectionalStreamRPC(client)
 		case "5":
+			streamingClient.clientRepeatedStream()
+		case "6":
 			fmt.Println("Exiting...")
+			streamingClient.recvChan <- "exit"
 			return
 		default:
 			fmt.Println("Invalid choice. Please try again.")
@@ -64,7 +74,39 @@ func main() {
 	}
 }
 
-func unaryRPC(client pb.StreamingServiceClient) {
+type StreamingClient struct {
+	recvChan   chan string
+	recvClient pb.StreamingServiceClient
+}
+
+func (s *StreamingClient) initOneClientStream() {
+	go func() {
+	streamLoop:
+		for {
+			stream, err := s.recvClient.ClientStreamRPC(context.Background())
+			if err != nil {
+				fmt.Printf("failed to call ClientStreamRPC: %v", err)
+				continue streamLoop
+			}
+			for s := range s.recvChan {
+				if s == "exit" {
+					// not a good impl but for exit demo
+					fmt.Println("receive exit")
+					break
+				}
+				if err := stream.Send(&pb.ClientStreamRequest{Message: s}); err != nil {
+					fmt.Printf("failed to send ClientStreamRequest: %v", err)
+					continue streamLoop
+				}
+				fmt.Printf("Sending message: %s\n", s)
+			}
+			stream.CloseAndRecv()
+			break
+		}
+	}()
+}
+
+func (s *StreamingClient) unaryRPC(client pb.StreamingServiceClient) {
 	// Unary RPC
 	unaryResponse, err := client.UnaryRPC(context.Background(), &pb.UnaryRequest{Message: "Hello, Unary RPC!"})
 	if err != nil {
@@ -73,7 +115,7 @@ func unaryRPC(client pb.StreamingServiceClient) {
 	fmt.Println(unaryResponse.GetResponse())
 }
 
-func clientStreamRPC(client pb.StreamingServiceClient) {
+func (s *StreamingClient) clientStreamRPC(client pb.StreamingServiceClient) {
 	// Client Stream RPC
 	clientStream, err := client.ClientStreamRPC(context.Background())
 	if err != nil {
@@ -92,7 +134,15 @@ func clientStreamRPC(client pb.StreamingServiceClient) {
 	fmt.Println(clientStreamResponse.GetResponse())
 }
 
-func serverStreamRPC(client pb.StreamingServiceClient) {
+func (s *StreamingClient) clientRepeatedStream() {
+	s.recvChan <- "Hello, 1"
+	time.Sleep(100 * time.Millisecond)
+	s.recvChan <- "Hello, 2"
+	time.Sleep(100 * time.Millisecond)
+	s.recvChan <- "Hello, 3"
+}
+
+func (s *StreamingClient) serverStreamRPC(client pb.StreamingServiceClient) {
 	// Server Stream RPC
 	serverStream, err := client.ServerStreamRPC(context.Background(), &pb.ServerStreamRequest{Message: "Hello, Server Stream RPC!"})
 	if err != nil {
@@ -110,7 +160,7 @@ func serverStreamRPC(client pb.StreamingServiceClient) {
 	}
 }
 
-func bidirectionalStreamRPC(client pb.StreamingServiceClient) {
+func (s *StreamingClient) bidirectionalStreamRPC(client pb.StreamingServiceClient) {
 
 	fmt.Println("Starting Bidirectional Stream RPC...")
 	// Bidirectional Stream RPC
