@@ -14,6 +14,7 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/metadata"
 )
 
 var ServerDelay = 10
@@ -31,6 +32,8 @@ func main() {
 	}
 	defer conn.Close()
 
+	// 这里在启动时创建一个 stream service client 做永久 client 保活，并维持连接，在同一个连接里推送消息
+	// 用以模拟大多数 grpc client sdk 的行为，所以所有流量在启动时都会有一个 client stream 请求
 	client := pb.NewStreamingServiceClient(conn)
 
 	streamingClient := &StreamingClient{
@@ -106,9 +109,18 @@ func (s *StreamingClient) initOneClientStream() {
 	}()
 }
 
+var uniformHeader = func(s string) metadata.MD {
+	return metadata.New(map[string]string{
+		"Custom-Header": "custom-test-metadata",
+		"Client-IP":     "127.0.0.1",
+		"CallFrom":      fmt.Sprintf("%s", s),
+	})
+}
+
 func (s *StreamingClient) unaryRPC(client pb.StreamingServiceClient) {
-	// Unary RPC
-	unaryResponse, err := client.UnaryRPC(context.Background(), &pb.UnaryRequest{Message: "Hello, Unary RPC!"})
+	// Unary unaryRPC
+	ctx := metadata.NewOutgoingContext(context.Background(), uniformHeader("unaryRPC"))
+	unaryResponse, err := client.UnaryRPC(ctx, &pb.UnaryRequest{Message: "Hello, Unary RPC!"})
 	if err != nil {
 		log.Fatalf("failed to call UnaryRPC: %v", err)
 	}
@@ -117,7 +129,8 @@ func (s *StreamingClient) unaryRPC(client pb.StreamingServiceClient) {
 
 func (s *StreamingClient) clientStreamRPC(client pb.StreamingServiceClient) {
 	// Client Stream RPC
-	clientStream, err := client.ClientStreamRPC(context.Background())
+	ctx := metadata.NewOutgoingContext(context.Background(), uniformHeader("clientStream"))
+	clientStream, err := client.ClientStreamRPC(ctx)
 	if err != nil {
 		log.Fatalf("failed to call ClientStreamRPC: %v", err)
 	}
@@ -144,7 +157,8 @@ func (s *StreamingClient) clientRepeatedStream() {
 
 func (s *StreamingClient) serverStreamRPC(client pb.StreamingServiceClient) {
 	// Server Stream RPC
-	serverStream, err := client.ServerStreamRPC(context.Background(), &pb.ServerStreamRequest{Message: "Hello, Server Stream RPC!"})
+	ctx := metadata.NewOutgoingContext(context.Background(), uniformHeader("serverStream"))
+	serverStream, err := client.ServerStreamRPC(ctx, &pb.ServerStreamRequest{Message: "Hello, Server Stream RPC!"})
 	if err != nil {
 		log.Fatalf("failed to call ServerStreamRPC: %v", err)
 	}
@@ -161,10 +175,10 @@ func (s *StreamingClient) serverStreamRPC(client pb.StreamingServiceClient) {
 }
 
 func (s *StreamingClient) bidirectionalStreamRPC(client pb.StreamingServiceClient) {
-
 	fmt.Println("Starting Bidirectional Stream RPC...")
 	// Bidirectional Stream RPC
-	bidirectionalStream, err := client.BidirectionalStreamRPC(context.Background())
+	ctx := metadata.NewOutgoingContext(context.Background(), uniformHeader("bidirectionalStream"))
+	bidirectionalStream, err := client.BidirectionalStreamRPC(ctx)
 	if err != nil {
 		log.Fatalf("failed to call BidirectionalStreamRPC: %v", err)
 	}

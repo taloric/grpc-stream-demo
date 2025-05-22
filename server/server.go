@@ -5,12 +5,14 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"net/http"
+
+	// "net/http"
 	"server/message/pb"
 	"time"
 
-	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
+	// "github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
 )
 
 var ServerDelay = 10
@@ -19,7 +21,18 @@ type StreamingServer struct {
 	pb.UnimplementedStreamingServiceServer
 }
 
+func displayMetadata(ctx context.Context) {
+	if md, ok := metadata.FromIncomingContext(ctx); ok {
+		fmt.Println("receive metadata: {")
+		for k, v := range md {
+			fmt.Printf("key: %s, val: %s \n", k, v)
+		}
+		fmt.Println("}")
+	}
+}
+
 func (s *StreamingServer) UnaryRPC(ctx context.Context, req *pb.UnaryRequest) (*pb.UnaryResponse, error) {
+	displayMetadata(ctx)
 	return &pb.UnaryResponse{Response: "Unary RPC response: " + req.GetMessage()}, nil
 }
 
@@ -71,19 +84,20 @@ func server_start(port string) {
 	s := grpc.NewServer()
 	pb.RegisterStreamingServiceServer(s, &StreamingServer{})
 
-	mux := runtime.NewServeMux()
-	mux.HandlePath("GET", "/hello", runtime.HandlerFunc(func(w http.ResponseWriter, r *http.Request, pathParams map[string]string) {
-		fmt.Println("http request touched")
-		w.Write([]byte("hello, http"))
-	}))
+	// server mux for handle http&grpc req
+	// mux := runtime.NewServeMux()
+	// mux.HandlePath("GET", "/hello", runtime.HandlerFunc(func(w http.ResponseWriter, r *http.Request, pathParams map[string]string) {
+	// 	fmt.Println("http request touched")
+	// 	w.Write([]byte("hello, http"))
+	// }))
 
-	go func() {
-		if err := s.Serve(l); err != nil {
-			fmt.Printf("failed to serve grpc: %v", err)
-		}
-	}()
+	// go func() {
+	// 	if err := http.Serve(l, mux); err != nil {
+	// 		fmt.Printf("failed to serve http: %v", err)
+	// 	}
+	// }()
 
-	if err := http.Serve(l, mux); err != nil {
-		fmt.Printf("failed to serve http: %v", err)
+	if err := s.Serve(l); err != nil {
+		fmt.Printf("failed to serve grpc: %v", err)
 	}
 }
